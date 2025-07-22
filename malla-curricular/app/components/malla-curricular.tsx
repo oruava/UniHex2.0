@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle, BookOpen, Award, Plus, Minus, X } from "lucide-react"
+import { CheckCircle, BookOpen, Award, Plus, Minus, X, GraduationCap, RefreshCw } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { careers } from "../data/careers"
 
 interface Subject {
   id: string
@@ -32,6 +33,7 @@ interface MallaCurricularProps {
 
 export default function MallaCurricular({ levels, setLevels }: MallaCurricularProps) {
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
+  const [isCareerSelectOpen, setIsCareerSelectOpen] = useState(false)
   const [newSubject, setNewSubject] = useState({
     code: "",
     name: "",
@@ -117,12 +119,41 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
   }
 
   const resetAll = () => {
-    setLevels(
-      levels.map((level) => ({
-        ...level,
-        subjects: level.subjects.map((subject) => ({ ...subject, completed: false })),
-      })),
-    )
+    if (confirm("¿Estás seguro de que quieres reiniciar todas las materias? Esto marcará todas como no completadas.")) {
+      setLevels(
+        levels.map((level) => ({
+          ...level,
+          subjects: level.subjects.map((subject) => ({ ...subject, completed: false })),
+        })),
+      )
+    }
+  }
+
+  const loadCareer = (careerId: string) => {
+    const career = careers.find((c) => c.id === careerId)
+    if (!career) return
+
+    if (
+      confirm(
+        `¿Estás seguro de que quieres cargar la malla de ${career.name} - ${career.university}? Esto reemplazará tu malla actual.`,
+      )
+    ) {
+      // Convert career data to our format
+      const newLevels: Level[] = career.levels.map((level) => ({
+        level: level.level,
+        subjects: level.subjects.map((subject) => ({
+          id: subject.id,
+          code: subject.code,
+          name: subject.name,
+          hours: subject.hours,
+          sct: subject.sct,
+          completed: false,
+        })),
+      }))
+
+      setLevels(newLevels)
+      setIsCareerSelectOpen(false)
+    }
   }
 
   const getTotalStats = () => {
@@ -182,6 +213,46 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
           </div>
 
           {/* Control Buttons */}
+          <Dialog open={isCareerSelectOpen} onOpenChange={setIsCareerSelectOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                <GraduationCap className="w-4 h-4 mr-1" />
+                Cargar Carrera
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Seleccionar Carrera Predefinida</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Selecciona una carrera para cargar automáticamente todos los ramos con sus códigos, horas y créditos.
+                </p>
+                <div className="space-y-3">
+                  {careers.map((career) => (
+                    <Card
+                      key={career.id}
+                      className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => loadCareer(career.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="font-semibold text-indigo-600">{career.name}</div>
+                        <div className="text-sm text-gray-600">{career.university}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {career.levels.length} niveles •{" "}
+                          {career.levels.reduce((acc, level) => acc + level.subjects.length, 0)} ramos
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <Button variant="outline" onClick={() => setIsCareerSelectOpen(false)} className="w-full">
+                  Cancelar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
@@ -279,6 +350,7 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
             variant="outline"
             className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 bg-transparent"
           >
+            <RefreshCw className="w-4 h-4 mr-1" />
             Reiniciar
           </Button>
         </motion.div>
