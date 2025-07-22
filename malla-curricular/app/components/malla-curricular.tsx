@@ -16,6 +16,10 @@ import {
   Upload,
   Download,
   FileText,
+  Sparkles,
+  Camera,
+  FileImage,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +28,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { careers } from "../data/careers"
 
 interface Subject {
@@ -48,6 +54,7 @@ interface MallaCurricularProps {
 export default function MallaCurricular({ levels, setLevels }: MallaCurricularProps) {
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [isCareerSelectOpen, setIsCareerSelectOpen] = useState(false)
+  const [isAIProcessorOpen, setIsAIProcessorOpen] = useState(false)
   const [newSubject, setNewSubject] = useState({
     code: "",
     name: "",
@@ -59,6 +66,12 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // AI Processor states
+  const [aiInput, setAiInput] = useState("")
+  const [aiImage, setAiImage] = useState<File | null>(null)
+  const [isAIProcessing, setIsAIProcessing] = useState(false)
+  const [aiPreview, setAiPreview] = useState<string>("")
 
   const toggleSubject = (levelIndex: number, subjectIndex: number) => {
     setLevels(
@@ -140,7 +153,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
     if (
       confirm("¿Estás seguro de que quieres reiniciar la malla curricular? Esto eliminará TODOS los ramos y niveles.")
     ) {
-      // Crear un nivel vacío inicial
       setLevels([{ level: 1, subjects: [] }])
     }
   }
@@ -154,7 +166,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
         `¿Estás seguro de que quieres cargar la malla de ${career.name} - ${career.university}? Esto reemplazará tu malla actual.`,
       )
     ) {
-      // Convert career data to our format
       const newLevels: Level[] = career.levels.map((level) => ({
         level: level.level,
         subjects: level.subjects.map((subject) => ({
@@ -179,6 +190,72 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
     }
   }
 
+  const handleAIImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type.startsWith("image/")) {
+      setAiImage(file)
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setAiPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const processWithAI = async () => {
+    if (!aiInput.trim() && !aiImage) {
+      alert("Por favor ingresa texto o sube una imagen de tu malla curricular")
+      return
+    }
+
+    setIsAIProcessing(true)
+
+    try {
+      const formData = new FormData()
+
+      if (aiImage) {
+        formData.append("image", aiImage)
+      }
+
+      if (aiInput.trim()) {
+        formData.append("text", aiInput)
+      }
+
+      const response = await fetch("/api/process-curriculum", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("Error procesando con IA")
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.levels) {
+        if (
+          confirm(
+            `¿Importar ${result.totalSubjects} ramos en ${result.levels.length} niveles? Esto reemplazará tu malla actual.`,
+          )
+        ) {
+          setLevels(result.levels)
+          setIsAIProcessorOpen(false)
+          setAiInput("")
+          setAiImage(null)
+          setAiPreview("")
+        }
+      } else {
+        alert("No se pudo procesar la información. Intenta con una imagen más clara o texto más detallado.")
+      }
+    } catch (error) {
+      console.error("Error processing with AI:", error)
+      alert("Error procesando con IA. Intenta nuevamente.")
+    } finally {
+      setIsAIProcessing(false)
+    }
+  }
+
   const processImportFile = async () => {
     if (!importFile) return
 
@@ -189,7 +266,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
       let data: any[] = []
 
       if (importFile.name.endsWith(".csv")) {
-        // Parse CSV
         const lines = text.split("\n").filter((line) => line.trim())
         const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
 
@@ -204,7 +280,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
           }
         }
       } else if (importFile.name.endsWith(".json")) {
-        // Parse JSON
         data = JSON.parse(text)
       }
 
@@ -213,7 +288,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
         return
       }
 
-      // Convert to our format
       const levelMap = new Map<number, Subject[]>()
 
       data.forEach((item) => {
@@ -233,7 +307,6 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
         levelMap.get(level)!.push(subject)
       })
 
-      // Create new levels array
       const newLevels: Level[] = []
       const maxLevel = Math.max(...Array.from(levelMap.keys()))
 
@@ -333,12 +406,140 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
             <span className="text-sm font-semibold">{progressPercentage.toFixed(1)}% Completado</span>
           </div>
 
-          {/* Control Buttons */}
+          {/* AI Processor Button */}
+          <Dialog open={isAIProcessorOpen} onOpenChange={setIsAIProcessorOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                IA Malla
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  Procesador IA de Malla Curricular
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-purple-800 mb-2 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    ¿Cómo funciona?
+                  </h4>
+                  <ul className="text-sm text-purple-700 space-y-1">
+                    <li>
+                      📸 <strong>Sube una foto</strong> de tu malla curricular oficial
+                    </li>
+                    <li>
+                      📝 <strong>O pega el texto</strong> con la lista de tus ramos
+                    </li>
+                    <li>
+                      🤖 <strong>La IA procesará</strong> automáticamente toda la información
+                    </li>
+                    <li>
+                      ✨ <strong>Se creará tu malla</strong> con códigos, nombres, horas y créditos
+                    </li>
+                  </ul>
+                </div>
+
+                <Tabs defaultValue="image" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="image" className="flex items-center gap-2">
+                      <Camera className="w-4 h-4" />
+                      Subir Imagen
+                    </TabsTrigger>
+                    <TabsTrigger value="text" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Pegar Texto
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="image" className="space-y-4">
+                    <div>
+                      <Label htmlFor="ai-image-upload">Imagen de tu Malla Curricular</Label>
+                      <Input
+                        id="ai-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAIImageUpload}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    {aiPreview && (
+                      <div className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileImage className="w-4 h-4 text-gray-600" />
+                          <span className="text-sm font-medium">Vista previa:</span>
+                        </div>
+                        <img
+                          src={aiPreview || "/placeholder.svg"}
+                          alt="Preview"
+                          className="max-w-full h-32 object-contain rounded border"
+                        />
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="text" className="space-y-4">
+                    <div>
+                      <Label htmlFor="ai-text-input">Texto de tu Malla Curricular</Label>
+                      <Textarea
+                        id="ai-text-input"
+                        value={aiInput}
+                        onChange={(e) => setAiInput(e.target.value)}
+                        placeholder="Pega aquí el texto de tu malla curricular. Ejemplo:
+
+Nivel 1:
+- MAT101 - Matemáticas I (6 horas, 5 créditos)
+- FIS101 - Física I (4 horas, 4 créditos)
+
+Nivel 2:
+- MAT201 - Matemáticas II (6 horas, 5 créditos)
+..."
+                        rows={8}
+                        className="mt-1"
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={processWithAI}
+                    disabled={isAIProcessing || (!aiInput.trim() && !aiImage)}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  >
+                    {isAIProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Procesando con IA...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Procesar con IA
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsAIProcessorOpen(false)} className="flex-1">
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Other control buttons */}
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-green-600 hover:bg-green-700">
                 <Upload className="w-4 h-4 mr-1" />
-                Importar Malla
+                Importar
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
