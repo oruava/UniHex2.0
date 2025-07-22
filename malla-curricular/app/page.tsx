@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { GraduationCap, Calendar, Clock, BookOpen, Calculator, Home, Menu, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -72,6 +72,7 @@ export default function UniversityApp() {
   const [currentWindow, setCurrentWindow] = useState<WindowType>("home")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   // User data state
   const [levels, setLevels] = useState<Level[]>([
@@ -85,17 +86,20 @@ export default function UniversityApp() {
   const [minPassingGrade, setMinPassingGrade] = useState(3.96)
   const [minExamGrade, setMinExamGrade] = useState(3.56)
 
+  // Use ref to track if we're currently saving to prevent loops
+  const isSaving = useRef(false)
+
   // Check for existing session on mount
   useEffect(() => {
     checkUser()
   }, [])
 
-  // Save user data whenever it changes
+  // Save user data whenever it changes (but only after data is loaded)
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && dataLoaded && !isSaving.current) {
       saveUserData()
     }
-  }, [levels, schedule, calendarEvents, subjectGrades, minPassingGrade, minExamGrade, currentUser])
+  }, [levels, schedule, calendarEvents, subjectGrades, minPassingGrade, minExamGrade, currentUser, dataLoaded])
 
   const checkUser = async () => {
     try {
@@ -114,7 +118,9 @@ export default function UniversityApp() {
   }
 
   const saveUserData = async () => {
-    if (!currentUser) return
+    if (!currentUser || isSaving.current) return
+
+    isSaving.current = true
 
     try {
       const userData = {
@@ -132,9 +138,13 @@ export default function UniversityApp() {
 
       if (error) {
         console.error("Error saving user data:", error)
+      } else {
+        console.log("Data saved successfully!")
       }
     } catch (error) {
       console.error("Error saving user data:", error)
+    } finally {
+      isSaving.current = false
     }
   }
 
@@ -145,30 +155,46 @@ export default function UniversityApp() {
       if (error && error.code !== "PGRST116") {
         // PGRST116 is "not found"
         console.error("Error loading user data:", error)
+        setDataLoaded(true)
         return
       }
 
       if (data) {
+        console.log("Loading user data:", data)
+
+        // Parse and set data
+        const parsedLevels = JSON.parse(data.levels || "[]")
+        const parsedSchedule = JSON.parse(data.schedule || "[]")
+        const parsedCalendarEvents = JSON.parse(data.calendar_events || "[]")
+        const parsedSubjectGrades = JSON.parse(data.subject_grades || "[]")
+
         setLevels(
-          JSON.parse(data.levels) || [
-            { level: 1, subjects: [] },
-            { level: 2, subjects: [] },
-            { level: 3, subjects: [] },
-          ],
+          parsedLevels.length > 0
+            ? parsedLevels
+            : [
+                { level: 1, subjects: [] },
+                { level: 2, subjects: [] },
+                { level: 3, subjects: [] },
+              ],
         )
-        setSchedule(JSON.parse(data.schedule) || [])
-        setCalendarEvents(JSON.parse(data.calendar_events) || [])
-        setSubjectGrades(JSON.parse(data.subject_grades) || [])
+        setSchedule(parsedSchedule)
+        setCalendarEvents(parsedCalendarEvents)
+        setSubjectGrades(parsedSubjectGrades)
         setMinPassingGrade(data.min_passing_grade || 3.96)
         setMinExamGrade(data.min_exam_grade || 3.56)
+      } else {
+        console.log("No existing data found, using defaults")
       }
     } catch (error) {
       console.error("Error loading user data:", error)
+    } finally {
+      setDataLoaded(true)
     }
   }
 
   const handleLogin = (user: User) => {
     setCurrentUser(user)
+    setDataLoaded(false) // Reset data loaded state
     loadUserData(user.id)
   }
 
@@ -177,6 +203,7 @@ export default function UniversityApp() {
       await supabase.auth.signOut()
       setCurrentUser(null)
       setCurrentWindow("home")
+      setDataLoaded(false)
       // Reset data
       setLevels([
         { level: 1, subjects: [] },
@@ -207,6 +234,18 @@ export default function UniversityApp() {
   // If not logged in, show auth page
   if (!currentUser) {
     return <AuthPage onLogin={handleLogin} />
+  }
+
+  // Show loading while data is being loaded
+  if (!dataLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <GraduationCap className="w-16 h-16 text-indigo-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Cargando tus datos...</p>
+        </div>
+      </div>
+    )
   }
 
   const menuItems = [
