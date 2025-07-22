@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { motion } from "framer-motion"
 import { CalendarIcon, Plus, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,12 +23,11 @@ interface CalendarioAcademicoProps {
 }
 
 export default function CalendarioAcademico({ events, setEvents }: CalendarioAcademicoProps) {
-  const [currentDate, setCurrentDate] = useState(() => {
-    const today = new Date()
-    return new Date(today.getFullYear(), today.getMonth(), 1)
-  })
+  // Usar año y mes por separado para evitar problemas de estado
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear())
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth())
+
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState("")
   const [newEvent, setNewEvent] = useState({
     title: "",
     description: "",
@@ -52,28 +51,27 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
   const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
+  // Usar useMemo para recalcular los días solo cuando cambie el año o mes
+  const days = useMemo(() => {
+    const firstDay = new Date(currentYear, currentMonth, 1)
+    const lastDay = new Date(currentYear, currentMonth + 1, 0)
     const daysInMonth = lastDay.getDate()
     const startingDayOfWeek = firstDay.getDay()
 
-    const days = []
+    const daysArray = []
 
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null)
+      daysArray.push(null)
     }
 
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day))
+      daysArray.push(new Date(currentYear, currentMonth, day))
     }
 
-    return days
-  }
+    return daysArray
+  }, [currentYear, currentMonth])
 
   const formatDate = (date: Date) => {
     const year = date.getFullYear()
@@ -114,15 +112,21 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev.getFullYear(), prev.getMonth(), 1) // Always use day 1 to avoid date issues
-      if (direction === "prev") {
-        newDate.setMonth(newDate.getMonth() - 1)
+    if (direction === "prev") {
+      if (currentMonth === 0) {
+        setCurrentMonth(11)
+        setCurrentYear(currentYear - 1)
       } else {
-        newDate.setMonth(newDate.getMonth() + 1)
+        setCurrentMonth(currentMonth - 1)
       }
-      return newDate
-    })
+    } else {
+      if (currentMonth === 11) {
+        setCurrentMonth(0)
+        setCurrentYear(currentYear + 1)
+      } else {
+        setCurrentMonth(currentMonth + 1)
+      }
+    }
   }
 
   const openAddEventDialog = (date?: Date) => {
@@ -132,13 +136,10 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
     setIsAddEventOpen(true)
   }
 
-  const days = getDaysInMonth(currentDate)
-
   // Función para formatear correctamente la fecha en español
   const formatLocalDate = (dateString: string) => {
-    // Parse the date string and create a proper date object
     const [year, month, day] = dateString.split("-").map(Number)
-    const date = new Date(year, month - 1, day) // month - 1 because Date months are 0-indexed
+    const date = new Date(year, month - 1, day)
 
     return date.toLocaleDateString("es-ES", {
       weekday: "long",
@@ -168,8 +169,8 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
             <Button variant="outline" onClick={() => navigateMonth("prev")}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <h2 className="text-2xl font-semibold">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            <h2 className="text-2xl font-semibold min-w-[200px] text-center">
+              {monthNames[currentMonth]} {currentYear}
             </h2>
             <Button variant="outline" onClick={() => navigateMonth("next")}>
               <ChevronRight className="w-4 h-4" />
@@ -245,7 +246,7 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
             <div className="grid grid-cols-7 gap-2">
               {days.map((day, index) => {
                 if (!day) {
-                  return <div key={index} className="h-24"></div>
+                  return <div key={`empty-${index}`} className="h-24"></div>
                 }
 
                 const dayEvents = getEventsForDate(day)
@@ -253,7 +254,7 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
                 return (
                   <motion.div
-                    key={day.getDate()}
+                    key={`${currentYear}-${currentMonth}-${day.getDate()}`}
                     whileHover={{ scale: 1.02 }}
                     className={`h-24 p-2 border rounded-lg cursor-pointer transition-all ${
                       isToday ? "bg-indigo-100 border-indigo-300" : "bg-white/50 border-gray-200 hover:bg-white/80"
