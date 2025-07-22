@@ -1,8 +1,22 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle, BookOpen, Award, Plus, Minus, X, GraduationCap, RefreshCw } from "lucide-react"
+import {
+  CheckCircle,
+  BookOpen,
+  Award,
+  Plus,
+  Minus,
+  X,
+  GraduationCap,
+  RefreshCw,
+  Upload,
+  Download,
+  FileText,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -41,6 +55,10 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
     sct: "",
     level: "",
   })
+
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const toggleSubject = (levelIndex: number, subjectIndex: number) => {
     setLevels(
@@ -156,6 +174,111 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
     }
   }
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setImportFile(file)
+    }
+  }
+
+  const processImportFile = async () => {
+    if (!importFile) return
+
+    setIsProcessing(true)
+
+    try {
+      const text = await importFile.text()
+      let data: any[] = []
+
+      if (importFile.name.endsWith(".csv")) {
+        // Parse CSV
+        const lines = text.split("\n").filter((line) => line.trim())
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(",").map((v) => v.trim())
+          const row: any = {}
+          headers.forEach((header, index) => {
+            row[header] = values[index] || ""
+          })
+          if (row.codigo && row.nombre) {
+            data.push(row)
+          }
+        }
+      } else if (importFile.name.endsWith(".json")) {
+        // Parse JSON
+        data = JSON.parse(text)
+      }
+
+      if (data.length === 0) {
+        alert("No se encontraron datos válidos en el archivo")
+        return
+      }
+
+      // Convert to our format
+      const levelMap = new Map<number, Subject[]>()
+
+      data.forEach((item) => {
+        const level = Number.parseInt(item.nivel || item.level || "1")
+        const subject: Subject = {
+          id: Date.now().toString() + Math.random(),
+          code: (item.codigo || item.code || "").toUpperCase(),
+          name: (item.nombre || item.name || item.asignatura || "").toUpperCase(),
+          hours: Number.parseInt(item.horas || item.hours || "0"),
+          sct: Number.parseFloat(item.sct || item.creditos || item.credits || "0"),
+          completed: false,
+        }
+
+        if (!levelMap.has(level)) {
+          levelMap.set(level, [])
+        }
+        levelMap.get(level)!.push(subject)
+      })
+
+      // Create new levels array
+      const newLevels: Level[] = []
+      const maxLevel = Math.max(...Array.from(levelMap.keys()))
+
+      for (let i = 1; i <= maxLevel; i++) {
+        newLevels.push({
+          level: i,
+          subjects: levelMap.get(i) || [],
+        })
+      }
+
+      if (confirm(`¿Importar ${data.length} ramos en ${newLevels.length} niveles? Esto reemplazará tu malla actual.`)) {
+        setLevels(newLevels)
+        setIsImportOpen(false)
+        setImportFile(null)
+      }
+    } catch (error) {
+      console.error("Error processing file:", error)
+      alert("Error procesando el archivo. Verifica el formato.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const exportToCSV = () => {
+    const csvContent = ["Nivel,Codigo,Nombre,Horas,SCT,Completado"]
+
+    levels.forEach((level) => {
+      level.subjects.forEach((subject) => {
+        csvContent.push(
+          `${level.level},${subject.code},"${subject.name}",${subject.hours},${subject.sct},${subject.completed ? "Si" : "No"}`,
+        )
+      })
+    })
+
+    const blob = new Blob([csvContent.join("\n")], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "malla-curricular.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const getTotalStats = () => {
     const totalSubjects = levels.reduce((acc, level) => acc + level.subjects.length, 0)
     const completedSubjects = levels.reduce(
@@ -213,6 +336,70 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
           </div>
 
           {/* Control Buttons */}
+          <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                <Upload className="w-4 h-4 mr-1" />
+                Importar Malla
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Importar Malla Curricular</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <h4 className="font-semibold text-blue-800 mb-2">Formatos Soportados:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>
+                      • <strong>CSV:</strong> Columnas: nivel, codigo, nombre, horas, sct
+                    </li>
+                    <li>
+                      • <strong>JSON:</strong> Array de objetos con las mismas propiedades
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <Label htmlFor="file-upload">Seleccionar Archivo</Label>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    accept=".csv,.json"
+                    onChange={handleFileUpload}
+                    className="mt-1"
+                  />
+                </div>
+
+                {importFile && (
+                  <div className="bg-gray-50 border rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium">{importFile.name}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{(importFile.size / 1024).toFixed(1)} KB</div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button onClick={processImportFile} disabled={!importFile || isProcessing} className="flex-1">
+                    {isProcessing ? "Procesando..." : "Importar"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsImportOpen(false)} className="flex-1">
+                    Cancelar
+                  </Button>
+                </div>
+
+                <div className="border-t pt-3">
+                  <Button variant="outline" onClick={exportToCSV} className="w-full bg-transparent">
+                    <Download className="w-4 h-4 mr-2" />
+                    Descargar Plantilla CSV
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={isCareerSelectOpen} onOpenChange={setIsCareerSelectOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
@@ -371,100 +558,108 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
 
         {/* Levels Grid */}
         <div className="flex-1 overflow-hidden">
-          <div className={`grid gap-2 h-full`} style={{ gridTemplateColumns: `repeat(${levels.length}, 1fr)` }}>
-            {levels.map((level, levelIndex) => (
-              <motion.div
-                key={level.level}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: levelIndex * 0.05 }}
-                className="bg-white/70 backdrop-blur-sm rounded-lg p-2 shadow-sm flex flex-col h-full"
-              >
-                {/* Header de la columna */}
-                <div className="text-center mb-2 flex-shrink-0">
-                  <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mx-auto mb-1">
-                    {level.level}
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800">Nivel {level.level}</h3>
-                  <Badge variant="secondary" className="text-xs mt-1">
-                    {level.subjects.filter((s) => s.completed).length}/{level.subjects.length}
-                  </Badge>
-                </div>
-
-                {/* Ramos en columna vertical */}
-                <div className="flex-1 space-y-2 overflow-y-auto">
-                  {level.subjects.length === 0 ? (
-                    <div className="text-center text-gray-400 text-xs mt-8">
-                      <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>No hay ramos</p>
-                      <p>en este nivel</p>
+          <div className="h-full overflow-x-auto">
+            <div
+              className="grid gap-2 h-full min-w-max"
+              style={{
+                gridTemplateColumns: `repeat(${levels.length}, minmax(280px, 1fr))`,
+                width: `${levels.length * 300}px`,
+              }}
+            >
+              {levels.map((level, levelIndex) => (
+                <motion.div
+                  key={level.level}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: levelIndex * 0.05 }}
+                  className="bg-white/70 backdrop-blur-sm rounded-lg p-2 shadow-sm flex flex-col h-full w-[280px]"
+                >
+                  {/* Header de la columna */}
+                  <div className="text-center mb-2 flex-shrink-0">
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mx-auto mb-1">
+                      {level.level}
                     </div>
-                  ) : (
-                    level.subjects.map((subject, subjectIndex) => (
-                      <motion.div
-                        key={subject.id}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="cursor-pointer relative group"
-                        onClick={() => toggleSubject(levelIndex, subjectIndex)}
-                      >
-                        <Card
-                          className={`transition-all duration-300 border ${
-                            subject.completed
-                              ? "bg-green-100 border-green-300 shadow-sm"
-                              : "bg-white hover:bg-gray-50 border-gray-200 hover:border-indigo-300 shadow-sm"
-                          } h-24`}
+                    <h3 className="text-sm font-bold text-gray-800">Nivel {level.level}</h3>
+                    <Badge variant="secondary" className="text-xs mt-1">
+                      {level.subjects.filter((s) => s.completed).length}/{level.subjects.length}
+                    </Badge>
+                  </div>
+
+                  {/* Ramos en columna vertical */}
+                  <div className="flex-1 space-y-2 overflow-y-auto">
+                    {level.subjects.length === 0 ? (
+                      <div className="text-center text-gray-400 text-xs mt-8">
+                        <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>No hay ramos</p>
+                        <p>en este nivel</p>
+                      </div>
+                    ) : (
+                      level.subjects.map((subject, subjectIndex) => (
+                        <motion.div
+                          key={subject.id}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="cursor-pointer relative group"
+                          onClick={() => toggleSubject(levelIndex, subjectIndex)}
                         >
-                          <CardContent className="p-2 h-full flex flex-col justify-between relative">
-                            <div className="flex-1">
-                              <div className="text-xs font-mono text-gray-600 mb-1">{subject.code}</div>
-                              <div
-                                className={`text-xs font-medium leading-tight ${
-                                  subject.completed ? "text-green-800" : "text-gray-800"
-                                }`}
-                                title={subject.name}
-                              >
-                                {subject.name.length > 35 ? subject.name.substring(0, 35) + "..." : subject.name}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500 flex justify-between mt-1">
-                              <span>{subject.hours}h</span>
-                              <span>{subject.sct}</span>
-                            </div>
-
-                            {/* Botón eliminar */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                removeSubject(levelIndex, subjectIndex)
-                              }}
-                              className="absolute top-0 left-0 -mt-1 -ml-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-
-                            {/* Checkmark verde */}
-                            <AnimatePresence>
-                              {subject.completed && (
-                                <motion.div
-                                  initial={{ scale: 0, rotate: -180 }}
-                                  animate={{ scale: 1, rotate: 0 }}
-                                  exit={{ scale: 0, rotate: 180 }}
-                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                  className="absolute top-0 right-0 -mt-1 -mr-1"
+                          <Card
+                            className={`transition-all duration-300 border ${
+                              subject.completed
+                                ? "bg-green-100 border-green-300 shadow-sm"
+                                : "bg-white hover:bg-gray-50 border-gray-200 hover:border-indigo-300 shadow-sm"
+                            } h-24`}
+                          >
+                            <CardContent className="p-2 h-full flex flex-col justify-between relative">
+                              <div className="flex-1">
+                                <div className="text-xs font-mono text-gray-600 mb-1">{subject.code}</div>
+                                <div
+                                  className={`text-xs font-medium leading-tight ${
+                                    subject.completed ? "text-green-800" : "text-gray-800"
+                                  }`}
+                                  title={subject.name}
                                 >
-                                  <CheckCircle className="w-5 h-5 text-green-600 bg-white rounded-full" />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                                  {subject.name.length > 35 ? subject.name.substring(0, 35) + "..." : subject.name}
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-500 flex justify-between mt-1">
+                                <span>{subject.hours}h</span>
+                                <span>{subject.sct}</span>
+                              </div>
+
+                              {/* Botón eliminar */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeSubject(levelIndex, subjectIndex)
+                                }}
+                                className="absolute top-0 left-0 -mt-1 -ml-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+
+                              {/* Checkmark verde */}
+                              <AnimatePresence>
+                                {subject.completed && (
+                                  <motion.div
+                                    initial={{ scale: 0, rotate: -180 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    exit={{ scale: 0, rotate: 180 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                    className="absolute top-0 right-0 -mt-1 -mr-1"
+                                  >
+                                    <CheckCircle className="w-5 h-5 text-green-600 bg-white rounded-full" />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
