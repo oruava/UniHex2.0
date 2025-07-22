@@ -137,13 +137,11 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
   }
 
   const resetAll = () => {
-    if (confirm("¿Estás seguro de que quieres reiniciar todas las materias? Esto marcará todas como no completadas.")) {
-      setLevels(
-        levels.map((level) => ({
-          ...level,
-          subjects: level.subjects.map((subject) => ({ ...subject, completed: false })),
-        })),
-      )
+    if (
+      confirm("¿Estás seguro de que quieres reiniciar la malla curricular? Esto eliminará TODOS los ramos y niveles.")
+    ) {
+      // Crear un nivel vacío inicial
+      setLevels([{ level: 1, subjects: [] }])
     }
   }
 

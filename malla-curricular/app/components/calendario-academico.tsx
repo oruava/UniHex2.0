@@ -128,6 +128,22 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
   const days = getDaysInMonth(currentDate)
 
+  // Función para formatear correctamente la fecha en español
+  const formatLocalDate = (dateString: string) => {
+    // Crear una nueva fecha a partir del string y asegurarse de que se interprete como UTC
+    const date = new Date(dateString)
+
+    // Ajustar la zona horaria para evitar problemas con el día
+    const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
+
+    return localDate.toLocaleDateString("es-ES", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
       <div className="max-w-6xl mx-auto">
@@ -287,14 +303,7 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
                       >
                         <div className="flex-1">
                           <div className="font-semibold text-gray-800">{event.title}</div>
-                          <div className="text-sm text-gray-600">
-                            {new Date(event.date).toLocaleDateString("es-ES", {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </div>
+                          <div className="text-sm text-gray-600">{formatLocalDate(event.date)}</div>
                           {event.description && <div className="text-xs text-gray-500 mt-1">{event.description}</div>}
                         </div>
                         <button

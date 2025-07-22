@@ -131,7 +131,7 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
           <div className="flex items-center justify-center gap-2 mb-4">
             <GraduationCap className="w-12 h-12 text-indigo-600" />
             <span className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Uni-Hex
+              UniHex
             </span>
           </div>
           <p className="text-gray-600">Tu asistente universitario personal</p>
