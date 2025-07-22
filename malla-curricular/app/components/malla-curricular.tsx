@@ -301,44 +301,45 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
   const progressPercentage = stats.totalSubjects > 0 ? (stats.completedSubjects / stats.totalSubjects) * 100 : 0
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 overflow-hidden">
-      <div className="h-full flex flex-col max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-2 sm:p-4">
+      <div className="h-full flex flex-col w-full max-w-none">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-4">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Mi Malla Curricular
           </h1>
-          <p className="text-gray-600">Gestiona y visualiza tu progreso académico</p>
+          <p className="text-gray-600 text-sm sm:text-base">Gestiona y visualiza tu progreso académico</p>
         </motion.div>
 
         {/* Stats and Controls */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex justify-center gap-2 mb-4 flex-wrap"
+          className="flex justify-center gap-1 sm:gap-2 mb-4 flex-wrap"
         >
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-semibold">
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1 sm:py-2 shadow-sm flex items-center gap-1 sm:gap-2">
+            <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+            <span className="text-xs sm:text-sm font-semibold">
               {stats.completedSubjects}/{stats.totalSubjects} Ramos
             </span>
           </div>
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm flex items-center gap-2">
-            <Award className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-semibold">
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1 sm:py-2 shadow-sm flex items-center gap-1 sm:gap-2">
+            <Award className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
+            <span className="text-xs sm:text-sm font-semibold">
               {stats.completedSCT.toFixed(1)}/{stats.totalSCT.toFixed(1)} SCT
             </span>
           </div>
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
-            <span className="text-sm font-semibold">{progressPercentage.toFixed(1)}% Completado</span>
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1 sm:py-2 shadow-sm">
+            <span className="text-xs sm:text-sm font-semibold">{progressPercentage.toFixed(1)}% Completado</span>
           </div>
 
           {/* Control Buttons */}
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                <Upload className="w-4 h-4 mr-1" />
-                Importar Malla
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm px-2 sm:px-3">
+                <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Importar</span>
+                <span className="sm:hidden">Import</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -400,9 +401,10 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
 
           <Dialog open={isCareerSelectOpen} onOpenChange={setIsCareerSelectOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                <GraduationCap className="w-4 h-4 mr-1" />
-                Cargar Carrera
+              <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm px-2 sm:px-3">
+                <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Carrera</span>
+                <span className="sm:hidden">Car</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -440,9 +442,10 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
 
           <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-                <Plus className="w-4 h-4 mr-1" />
-                Agregar Ramo
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-xs sm:text-sm px-2 sm:px-3">
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Ramo</span>
+                <span className="sm:hidden">+</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -521,29 +524,43 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
             </DialogContent>
           </Dialog>
 
-          <Button onClick={addLevel} size="sm" variant="outline">
-            <Plus className="w-4 h-4 mr-1" />
-            Nivel
+          <Button
+            onClick={addLevel}
+            size="sm"
+            variant="outline"
+            className="text-xs sm:text-sm px-2 sm:px-3 bg-transparent"
+          >
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            <span className="hidden sm:inline">Nivel</span>
+            <span className="sm:hidden">+N</span>
           </Button>
-          <Button onClick={removeLevel} size="sm" variant="outline" disabled={levels.length <= 1}>
-            <Minus className="w-4 h-4 mr-1" />
-            Nivel
+          <Button
+            onClick={removeLevel}
+            size="sm"
+            variant="outline"
+            disabled={levels.length <= 1}
+            className="text-xs sm:text-sm px-2 sm:px-3 bg-transparent"
+          >
+            <Minus className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            <span className="hidden sm:inline">Nivel</span>
+            <span className="sm:hidden">-N</span>
           </Button>
           <Button
             onClick={resetAll}
             size="sm"
             variant="outline"
-            className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 bg-transparent"
+            className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 bg-transparent text-xs sm:text-sm px-2 sm:px-3"
           >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            Reiniciar
+            <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+            <span className="hidden sm:inline">Reiniciar</span>
+            <span className="sm:hidden">Reset</span>
           </Button>
         </motion.div>
 
         {/* Progress Bar */}
         {stats.totalSubjects > 0 && (
           <div className="mb-4">
-            <div className="bg-white/70 backdrop-blur-sm rounded-full h-3 shadow-inner">
+            <div className="bg-white/70 backdrop-blur-sm rounded-full h-2 sm:h-3 shadow-inner">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
@@ -554,40 +571,39 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
           </div>
         )}
 
-        {/* Levels Grid */}
+        {/* Levels Grid - Responsive sin scroll horizontal */}
         <div className="flex-1 overflow-hidden">
-          <div className="h-full overflow-x-auto">
+          <div className="h-full w-full">
             <div
-              className="grid gap-2 h-full min-w-max"
+              className="grid gap-1 sm:gap-2 h-full w-full"
               style={{
-                gridTemplateColumns: `repeat(${levels.length}, minmax(280px, 1fr))`,
-                width: `${levels.length * 300}px`,
+                gridTemplateColumns: `repeat(${Math.min(levels.length, 6)}, 1fr)`,
               }}
             >
-              {levels.map((level, levelIndex) => (
+              {levels.slice(0, 6).map((level, levelIndex) => (
                 <motion.div
                   key={level.level}
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: levelIndex * 0.05 }}
-                  className="bg-white/70 backdrop-blur-sm rounded-lg p-2 shadow-sm flex flex-col h-full w-[280px]"
+                  className="bg-white/70 backdrop-blur-sm rounded-lg p-1 sm:p-2 shadow-sm flex flex-col h-full min-w-0"
                 >
                   {/* Header de la columna */}
-                  <div className="text-center mb-2 flex-shrink-0">
-                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mx-auto mb-1">
+                  <div className="text-center mb-1 sm:mb-2 flex-shrink-0">
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-xs sm:text-sm font-bold mx-auto mb-1">
                       {level.level}
                     </div>
-                    <h3 className="text-sm font-bold text-gray-800">Nivel {level.level}</h3>
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-800">Nivel {level.level}</h3>
                     <Badge variant="secondary" className="text-xs mt-1">
                       {level.subjects.filter((s) => s.completed).length}/{level.subjects.length}
                     </Badge>
                   </div>
 
                   {/* Ramos en columna vertical */}
-                  <div className="flex-1 space-y-2 overflow-y-auto">
+                  <div className="flex-1 space-y-1 sm:space-y-2 overflow-y-auto">
                     {level.subjects.length === 0 ? (
-                      <div className="text-center text-gray-400 text-xs mt-8">
-                        <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <div className="text-center text-gray-400 text-xs mt-4 sm:mt-8">
+                        <BookOpen className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 opacity-50" />
                         <p>No hay ramos</p>
                         <p>en este nivel</p>
                       </div>
@@ -605,18 +621,18 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
                               subject.completed
                                 ? "bg-green-100 border-green-300 shadow-sm"
                                 : "bg-white hover:bg-gray-50 border-gray-200 hover:border-indigo-300 shadow-sm"
-                            } h-24`}
+                            } h-16 sm:h-20`}
                           >
-                            <CardContent className="p-2 h-full flex flex-col justify-between relative">
-                              <div className="flex-1">
-                                <div className="text-xs font-mono text-gray-600 mb-1">{subject.code}</div>
+                            <CardContent className="p-1 sm:p-2 h-full flex flex-col justify-between relative">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-mono text-gray-600 mb-1 truncate">{subject.code}</div>
                                 <div
                                   className={`text-xs font-medium leading-tight ${
                                     subject.completed ? "text-green-800" : "text-gray-800"
-                                  }`}
+                                  } line-clamp-2`}
                                   title={subject.name}
                                 >
-                                  {subject.name.length > 35 ? subject.name.substring(0, 35) + "..." : subject.name}
+                                  {subject.name.length > 25 ? subject.name.substring(0, 25) + "..." : subject.name}
                                 </div>
                               </div>
                               <div className="text-xs text-gray-500 flex justify-between mt-1">
@@ -632,7 +648,7 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
                                 }}
                                 className="absolute top-0 left-0 -mt-1 -ml-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <X className="w-3 h-3" />
+                                <X className="w-2 h-2 sm:w-3 sm:h-3" />
                               </button>
 
                               {/* Checkmark verde */}
@@ -645,7 +661,7 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
                                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                                     className="absolute top-0 right-0 -mt-1 -mr-1"
                                   >
-                                    <CheckCircle className="w-5 h-5 text-green-600 bg-white rounded-full" />
+                                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 bg-white rounded-full" />
                                   </motion.div>
                                 )}
                               </AnimatePresence>
@@ -658,6 +674,46 @@ export default function MallaCurricular({ levels, setLevels }: MallaCurricularPr
                 </motion.div>
               ))}
             </div>
+
+            {/* Mostrar niveles adicionales si hay más de 6 */}
+            {levels.length > 6 && (
+              <div className="mt-4 p-4 bg-white/70 backdrop-blur-sm rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Niveles Adicionales ({levels.length - 6})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {levels.slice(6).map((level) => (
+                    <div key={level.level} className="bg-white/50 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                          {level.level}
+                        </div>
+                        <span className="font-semibold">Nivel {level.level}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {level.subjects.filter((s) => s.completed).length}/{level.subjects.length}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {level.subjects.map((subject, subjectIndex) => (
+                          <div
+                            key={subject.id}
+                            className={`text-xs p-2 rounded cursor-pointer transition-colors ${
+                              subject.completed
+                                ? "bg-green-100 text-green-800"
+                                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                            }`}
+                            onClick={() => toggleSubject(levels.indexOf(level), subjectIndex)}
+                          >
+                            <div className="font-mono">{subject.code}</div>
+                            <div className="truncate" title={subject.name}>
+                              {subject.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
