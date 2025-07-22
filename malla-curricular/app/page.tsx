@@ -88,6 +88,7 @@ export default function UniversityApp() {
 
   // Use ref to track if we're currently saving to prevent loops
   const isSaving = useRef(false)
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Check for existing session on mount
   useEffect(() => {
@@ -97,30 +98,46 @@ export default function UniversityApp() {
   // Save user data whenever it changes (but only after data is loaded)
   useEffect(() => {
     if (currentUser && dataLoaded && !isSaving.current) {
-      saveUserData()
+      // Debounce saves to avoid too many requests
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current)
+      }
+
+      saveTimeout.current = setTimeout(() => {
+        saveUserData()
+      }, 1000) // Wait 1 second after last change
     }
   }, [levels, schedule, calendarEvents, subjectGrades, minPassingGrade, minExamGrade, currentUser, dataLoaded])
 
   const checkUser = async () => {
     try {
+      console.log("🔍 Checking user session...")
       const {
         data: { session },
       } = await supabase.auth.getSession()
+
       if (session?.user) {
+        console.log("✅ User found:", session.user.email)
         setCurrentUser({ id: session.user.id, email: session.user.email! })
         await loadUserData(session.user.id)
+      } else {
+        console.log("❌ No user session found")
       }
     } catch (error) {
-      console.error("Error checking user:", error)
+      console.error("❌ Error checking user:", error)
     } finally {
       setLoading(false)
     }
   }
 
   const saveUserData = async () => {
-    if (!currentUser || isSaving.current) return
+    if (!currentUser || isSaving.current) {
+      console.log("⏭️ Skipping save - no user or already saving")
+      return
+    }
 
     isSaving.current = true
+    console.log("💾 Saving user data...")
 
     try {
       const userData = {
@@ -134,15 +151,58 @@ export default function UniversityApp() {
         updated_at: new Date().toISOString(),
       }
 
-      const { error } = await supabase.from("user_data").upsert(userData)
+      console.log("📤 Data to save:", {
+        user_id: userData.user_id,
+        levels_count: levels.reduce((acc, level) => acc + level.subjects.length, 0),
+        schedule_count: schedule.length,
+        events_count: calendarEvents.length,
+        grades_count: subjectGrades.length,
+      })
 
-      if (error) {
-        console.error("Error saving user data:", error)
+      // First, check if record exists
+      const { data: existingData, error: checkError } = await supabase
+        .from("user_data")
+        .select("id")
+        .eq("user_id", currentUser.id)
+        .single()
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("❌ Error checking existing data:", checkError)
+        throw checkError
+      }
+
+      let result
+      if (existingData) {
+        // Update existing record
+        console.log("🔄 Updating existing record...")
+        result = await supabase
+          .from("user_data")
+          .update({
+            levels: userData.levels,
+            schedule: userData.schedule,
+            calendar_events: userData.calendar_events,
+            subject_grades: userData.subject_grades,
+            min_passing_grade: userData.min_passing_grade,
+            min_exam_grade: userData.min_exam_grade,
+            updated_at: userData.updated_at,
+          })
+          .eq("user_id", currentUser.id)
+          .select()
       } else {
-        console.log("Data saved successfully!")
+        // Insert new record
+        console.log("➕ Creating new record...")
+        result = await supabase.from("user_data").insert(userData).select()
+      }
+
+      if (result.error) {
+        console.error("❌ Error saving user data:", result.error)
+        alert("Error guardando datos: " + result.error.message)
+      } else {
+        console.log("✅ Data saved successfully!", result.data)
       }
     } catch (error) {
-      console.error("Error saving user data:", error)
+      console.error("❌ Unexpected error saving user data:", error)
+      alert("Error inesperado guardando datos")
     } finally {
       isSaving.current = false
     }
@@ -150,60 +210,87 @@ export default function UniversityApp() {
 
   const loadUserData = async (userId: string) => {
     try {
+      console.log("📥 Loading user data for:", userId)
+
       const { data, error } = await supabase.from("user_data").select("*").eq("user_id", userId).single()
 
       if (error && error.code !== "PGRST116") {
-        // PGRST116 is "not found"
-        console.error("Error loading user data:", error)
+        console.error("❌ Error loading user data:", error)
         setDataLoaded(true)
         return
       }
 
       if (data) {
-        console.log("Loading user data:", data)
+        console.log("✅ User data found:", {
+          levels_length: data.levels?.length || 0,
+          schedule_length: data.schedule?.length || 0,
+          events_length: data.calendar_events?.length || 0,
+          grades_length: data.subject_grades?.length || 0,
+        })
 
         // Parse and set data
-        const parsedLevels = JSON.parse(data.levels || "[]")
-        const parsedSchedule = JSON.parse(data.schedule || "[]")
-        const parsedCalendarEvents = JSON.parse(data.calendar_events || "[]")
-        const parsedSubjectGrades = JSON.parse(data.subject_grades || "[]")
+        try {
+          const parsedLevels = JSON.parse(data.levels || "[]")
+          const parsedSchedule = JSON.parse(data.schedule || "[]")
+          const parsedCalendarEvents = JSON.parse(data.calendar_events || "[]")
+          const parsedSubjectGrades = JSON.parse(data.subject_grades || "[]")
 
-        setLevels(
-          parsedLevels.length > 0
-            ? parsedLevels
-            : [
-                { level: 1, subjects: [] },
-                { level: 2, subjects: [] },
-                { level: 3, subjects: [] },
-              ],
-        )
-        setSchedule(parsedSchedule)
-        setCalendarEvents(parsedCalendarEvents)
-        setSubjectGrades(parsedSubjectGrades)
-        setMinPassingGrade(data.min_passing_grade || 3.96)
-        setMinExamGrade(data.min_exam_grade || 3.56)
+          console.log("📊 Parsed data:", {
+            levels: parsedLevels,
+            schedule: parsedSchedule,
+            events: parsedCalendarEvents,
+            grades: parsedSubjectGrades,
+          })
+
+          setLevels(
+            parsedLevels.length > 0
+              ? parsedLevels
+              : [
+                  { level: 1, subjects: [] },
+                  { level: 2, subjects: [] },
+                  { level: 3, subjects: [] },
+                ],
+          )
+          setSchedule(parsedSchedule)
+          setCalendarEvents(parsedCalendarEvents)
+          setSubjectGrades(parsedSubjectGrades)
+          setMinPassingGrade(data.min_passing_grade || 3.96)
+          setMinExamGrade(data.min_exam_grade || 3.56)
+        } catch (parseError) {
+          console.error("❌ Error parsing data:", parseError)
+        }
       } else {
-        console.log("No existing data found, using defaults")
+        console.log("ℹ️ No existing data found, using defaults")
       }
     } catch (error) {
-      console.error("Error loading user data:", error)
+      console.error("❌ Error loading user data:", error)
     } finally {
       setDataLoaded(true)
+      console.log("✅ Data loading completed")
     }
   }
 
   const handleLogin = (user: User) => {
+    console.log("🔐 User logged in:", user.email)
     setCurrentUser(user)
-    setDataLoaded(false) // Reset data loaded state
+    setDataLoaded(false)
     loadUserData(user.id)
   }
 
   const handleLogout = async () => {
     try {
+      console.log("🚪 Logging out...")
+
+      // Save data before logout
+      if (currentUser && dataLoaded) {
+        await saveUserData()
+      }
+
       await supabase.auth.signOut()
       setCurrentUser(null)
       setCurrentWindow("home")
       setDataLoaded(false)
+
       // Reset data
       setLevels([
         { level: 1, subjects: [] },
@@ -215,9 +302,17 @@ export default function UniversityApp() {
       setSubjectGrades([])
       setMinPassingGrade(3.96)
       setMinExamGrade(3.56)
+
+      console.log("✅ Logout completed")
     } catch (error) {
-      console.error("Error logging out:", error)
+      console.error("❌ Error logging out:", error)
     }
+  }
+
+  // Manual save function for testing
+  const manualSave = async () => {
+    console.log("🔧 Manual save triggered")
+    await saveUserData()
   }
 
   if (loading) {
@@ -316,6 +411,12 @@ export default function UniversityApp() {
             {/* User Menu */}
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600 hidden sm:block">{currentUser.email}</span>
+
+              {/* Debug button - remove this in production */}
+              <Button variant="outline" size="sm" onClick={manualSave} className="text-xs bg-transparent">
+                💾 Guardar
+              </Button>
+
               <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:block">Salir</span>
