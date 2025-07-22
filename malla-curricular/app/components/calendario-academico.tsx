@@ -23,7 +23,10 @@ interface CalendarioAcademicoProps {
 }
 
 export default function CalendarioAcademico({ events, setEvents }: CalendarioAcademicoProps) {
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => {
+    const today = new Date()
+    return new Date(today.getFullYear(), today.getMonth(), 1)
+  })
   const [isAddEventOpen, setIsAddEventOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
   const [newEvent, setNewEvent] = useState({
@@ -73,7 +76,10 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
   }
 
   const formatDate = (date: Date) => {
-    return date.toISOString().split("T")[0]
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
   }
 
   const getEventsForDate = (date: Date) => {
@@ -109,11 +115,11 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
   const navigateMonth = (direction: "prev" | "next") => {
     setCurrentDate((prev) => {
-      const newDate = new Date(prev)
+      const newDate = new Date(prev.getFullYear(), prev.getMonth(), 1) // Always use day 1 to avoid date issues
       if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1)
+        newDate.setMonth(newDate.getMonth() - 1)
       } else {
-        newDate.setMonth(prev.getMonth() + 1)
+        newDate.setMonth(newDate.getMonth() + 1)
       }
       return newDate
     })
@@ -130,13 +136,11 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
   // Función para formatear correctamente la fecha en español
   const formatLocalDate = (dateString: string) => {
-    // Crear una nueva fecha a partir del string y asegurarse de que se interprete como UTC
-    const date = new Date(dateString)
+    // Parse the date string and create a proper date object
+    const [year, month, day] = dateString.split("-").map(Number)
+    const date = new Date(year, month - 1, day) // month - 1 because Date months are 0-indexed
 
-    // Ajustar la zona horaria para evitar problemas con el día
-    const localDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
-
-    return localDate.toLocaleDateString("es-ES", {
+    return date.toLocaleDateString("es-ES", {
       weekday: "long",
       year: "numeric",
       month: "long",
