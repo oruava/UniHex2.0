@@ -49,14 +49,29 @@ export default function Horario({ levels, schedule, setSchedule }: HorarioProps)
     endTime: "",
   })
 
-  const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+  const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
   const hours = Array.from({ length: 14 }, (_, i) => {
     const hour = i + 8 // Start from 8 AM
     return `${hour.toString().padStart(2, "0")}:00`
   })
 
-  // Get all subjects from all levels
-  const allSubjects = levels.flatMap((level) => level.subjects)
+  // Get all subjects from all levels, excluding completed ones, and sort by level
+  const availableSubjects = levels
+    .flatMap((level) =>
+      level.subjects
+        .filter((subject) => !subject.completed) // Only show non-completed subjects
+        .map((subject) => ({
+          ...subject,
+          levelNumber: level.level, // Add level number for sorting
+        })),
+    )
+    .sort((a, b) => {
+      // First sort by level, then by code
+      if (a.levelNumber !== b.levelNumber) {
+        return a.levelNumber - b.levelNumber
+      }
+      return a.code.localeCompare(b.code)
+    })
 
   const addScheduleItem = () => {
     if (!newScheduleItem.subjectId || !newScheduleItem.day || !newScheduleItem.startTime || !newScheduleItem.endTime) {
@@ -64,7 +79,7 @@ export default function Horario({ levels, schedule, setSchedule }: HorarioProps)
       return
     }
 
-    const subject = allSubjects.find((s) => s.id === newScheduleItem.subjectId)
+    const subject = availableSubjects.find((s) => s.id === newScheduleItem.subjectId)
     if (!subject) {
       alert("Ramo no encontrado")
       return
@@ -147,12 +162,25 @@ export default function Horario({ levels, schedule, setSchedule }: HorarioProps)
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona un ramo" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {allSubjects.map((subject) => (
-                        <SelectItem key={subject.id} value={subject.id}>
-                          {subject.code} - {subject.name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="max-h-60">
+                      {availableSubjects.length === 0 ? (
+                        <div className="p-2 text-sm text-gray-500 text-center">
+                          No hay ramos disponibles
+                          <br />
+                          <span className="text-xs">Los ramos aprobados no se muestran</span>
+                        </div>
+                      ) : (
+                        availableSubjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {subject.code} - {subject.name}
+                              </span>
+                              <span className="text-xs text-gray-500">Nivel {subject.levelNumber}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -195,7 +223,7 @@ export default function Horario({ levels, schedule, setSchedule }: HorarioProps)
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={addScheduleItem} className="flex-1">
+                  <Button onClick={addScheduleItem} className="flex-1" disabled={availableSubjects.length === 0}>
                     Agregar
                   </Button>
                   <Button variant="outline" onClick={() => setIsAddScheduleOpen(false)} className="flex-1">
@@ -207,13 +235,28 @@ export default function Horario({ levels, schedule, setSchedule }: HorarioProps)
           </Dialog>
         </div>
 
+        {/* No subjects message */}
+        {availableSubjects.length === 0 && (
+          <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg mb-6">
+            <CardContent className="p-8 text-center">
+              <Clock className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">No hay ramos disponibles</h3>
+              <p className="text-gray-500">
+                Todos los ramos en tu malla curricular están marcados como aprobados.
+                <br />
+                Solo se muestran los ramos pendientes para agregar al horario.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Schedule Grid */}
         <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="text-center">Horario Semanal</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-6 gap-1">
+            <div className="grid grid-cols-8 gap-1">
               {/* Header */}
               <div className="p-2 font-semibold text-center bg-gray-100 rounded">Hora</div>
               {days.map((day) => (

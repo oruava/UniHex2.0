@@ -49,7 +49,8 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
     "Diciembre",
   ]
 
-  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+  // Cambiar el orden de los días: Domingo al final
+  const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
   // Usar useMemo para recalcular los días solo cuando cambie el año o mes
   const days = useMemo(() => {
@@ -60,8 +61,13 @@ export default function CalendarioAcademico({ events, setEvents }: CalendarioAca
 
     const daysArray = []
 
+    // Ajustar el día de inicio para que Lunes sea 0 en lugar de Domingo
+    // En JavaScript: Dom=0, Lun=1, Mar=2, etc.
+    // Queremos: Lun=0, Mar=1, Mié=2, Jue=3, Vie=4, Sáb=5, Dom=6
+    const adjustedStartingDay = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1
+
     // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
+    for (let i = 0; i < adjustedStartingDay; i++) {
       daysArray.push(null)
     }
 
